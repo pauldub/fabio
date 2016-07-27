@@ -74,9 +74,16 @@ type Metrics struct {
 
 type Registry struct {
 	Backend string
+	Micro   Micro
 	Static  Static
 	File    File
 	Consul  Consul
+}
+
+type Micro struct {
+	Registry        string
+	RegistryAddress string
+	Prefix          string
 }
 
 type Static struct {

@@ -17,6 +17,7 @@ import (
 	"github.com/eBay/fabio/registry"
 	"github.com/eBay/fabio/registry/consul"
 	"github.com/eBay/fabio/registry/file"
+	"github.com/eBay/fabio/registry/micro"
 	"github.com/eBay/fabio/registry/static"
 	"github.com/eBay/fabio/route"
 )
@@ -112,6 +113,8 @@ func initBackend(cfg *config.Config) {
 	var err error
 
 	switch cfg.Registry.Backend {
+	case "micro":
+		registry.Default, err = micro.NewBackend(cfg.Registry.Micro)
 	case "file":
 		registry.Default, err = file.NewBackend(cfg.Registry.File.Path)
 	case "static":

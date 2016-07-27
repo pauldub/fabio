@@ -29,6 +29,11 @@ var Default = &Config{
 			CheckInterval: time.Second,
 			CheckTimeout:  3 * time.Second,
 		},
+		Micro: Micro{
+			Registry:        "consul",
+			RegistryAddress: "localhost:8500",
+			Prefix:          "route-",
+		},
 	},
 	Runtime: Runtime{
 		GOGC:       800,

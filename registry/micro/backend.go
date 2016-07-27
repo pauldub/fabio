@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 )
 
 type be struct {
@@ -48,24 +47,47 @@ func (b *be) WatchServices() chan string {
 
 	go func() {
 		for {
+			log.Printf("[DEBUG] micro: waiting for services")
+
 			res, err := watcher.Next()
 			if err != nil {
-				log.Printf("[WARN] micro: failed to get next rseult: %+v", err)
-				time.Sleep(time.Second)
-				continue
+				log.Printf("[WARN] micro: failed to get next result: %+v", err)
 
+				// FIXME: Try to acquire a new watcher
+				watcher.Stop()
+				close(svc)
+				continue
 			}
 
 			service := res.Service
 
 			switch res.Action {
 			case "create":
+				fallthrough
+			case "update":
 				for _, node := range service.Nodes {
 					for _, route := range findRoutes(node.Metadata, b.prefix) {
 						svc <- fmt.Sprintf(
 							"route add %s %s%s http://%s:%d/ tags %q",
-							service.Name, route.host, route.path, node.Address, node.Port, "",
+							service.Name, route.host, route.path, node.Address, node.Port,
+							formatTags(service, node.Metadata, b.prefix),
 						)
+					}
+				}
+			case "delete":
+				for _, node := range service.Nodes {
+					log.Printf("[DEBUG] micro: delete %+v", node)
+					routes := findRoutes(node.Metadata, b.prefix)
+					if len(routes) == 0 {
+						// No metadata, delete the whole service
+						svc <- fmt.Sprintf("route del %s", service.Name)
+					} else {
+						for _, route := range routes {
+							svc <- fmt.Sprintf(
+								"route del %s %s%s http://%s:%d/",
+								service.Name, route.host, route.path, node.Address, node.Port,
+							)
+						}
 					}
 				}
 			}
@@ -75,6 +97,21 @@ func (b *be) WatchServices() chan string {
 	}()
 
 	return svc
+}
+
+func formatTags(service *mRegistry.Service, meta map[string]string, prefix string) string {
+	tags := make([]string, 0)
+	tags = append(tags, fmt.Sprintf("version:%s", service.Version))
+
+	for k, v := range meta {
+		if strings.HasPrefix(k, prefix) {
+			continue
+		}
+
+		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+	}
+
+	return strings.Join(tags, ",")
 }
 
 type route struct {

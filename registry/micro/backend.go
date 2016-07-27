@@ -6,18 +6,37 @@ import (
 	"github.com/micro/go-micro/cmd"
 	mRegistry "github.com/micro/go-micro/registry"
 
+	"errors"
 	"fmt"
 	"log"
 	"strings"
+	"time"
 )
 
+var ErrMissingRegistry = errors.New("the requested registry is not supported")
+
 type be struct {
-	reg    mRegistry.Registry
-	prefix string
+	reg             mRegistry.Registry
+	refreshInterval time.Duration
+	prefix          string
 }
 
 func NewBackend(cfg config.Micro) (registry.Backend, error) {
-	return &be{cmd.DefaultRegistries[cfg.Registry](mRegistry.Addrs(cfg.RegistryAddress)), cfg.Prefix}, nil
+	refreshInterval, err := time.ParseDuration(cfg.RefreshInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	reg, ok := cmd.DefaultRegistries[cfg.Registry]
+	if !ok {
+		return nil, ErrMissingRegistry
+	}
+
+	return &be{
+		reg:             reg(mRegistry.Addrs(cfg.RegistryAddress)),
+		refreshInterval: refreshInterval,
+		prefix:          cfg.Prefix,
+	}, nil
 }
 
 func (b *be) Register() error {
@@ -47,11 +66,9 @@ func (b *be) WatchServices() chan string {
 
 	go func() {
 		for {
-			log.Printf("[DEBUG] micro: waiting for services")
-
-			res, err := watcher.Next()
+			svcs, err := b.reg.ListServices()
 			if err != nil {
-				log.Printf("[WARN] micro: failed to get next result: %+v", err)
+				log.Printf("[WARN] micro: failed to get services: %+v", err)
 
 				// FIXME: Try to acquire a new watcher
 				watcher.Stop()
@@ -59,40 +76,31 @@ func (b *be) WatchServices() chan string {
 				continue
 			}
 
-			service := res.Service
+			config := make([]string, 0)
 
-			switch res.Action {
-			case "create":
-				fallthrough
-			case "update":
-				for _, node := range service.Nodes {
-					for _, route := range findRoutes(node.Metadata, b.prefix) {
-						svc <- fmt.Sprintf(
-							"route add %s %s%s http://%s:%d/ tags %q",
-							service.Name, route.host, route.path, node.Address, node.Port,
-							formatTags(service, node.Metadata, b.prefix),
-						)
-					}
+			for _, sv := range svcs {
+				services, err := b.reg.GetService(sv.Name)
+				if err != nil {
+					log.Printf("[WARN] micro: failed to get service: %+v", err)
+					continue
 				}
-			case "delete":
-				for _, node := range service.Nodes {
-					log.Printf("[DEBUG] micro: delete %+v", node)
-					routes := findRoutes(node.Metadata, b.prefix)
-					if len(routes) == 0 {
-						// No metadata, delete the whole service
-						svc <- fmt.Sprintf("route del %s", service.Name)
-					} else {
-						for _, route := range routes {
-							svc <- fmt.Sprintf(
-								"route del %s %s%s http://%s:%d/",
+
+				for _, service := range services {
+					for _, node := range service.Nodes {
+						for _, route := range findRoutes(node.Metadata, b.prefix) {
+							config = append(config, fmt.Sprintf(
+								"route add %s %s%s http://%s:%d/ tags %q",
 								service.Name, route.host, route.path, node.Address, node.Port,
-							)
+								formatTags(service, node.Metadata, b.prefix),
+							))
 						}
 					}
 				}
 			}
 
-			log.Printf("[INFO] micro: res %+v", res)
+			svc <- strings.Join(config, "\n")
+
+			time.Sleep(b.refreshInterval)
 		}
 	}()
 

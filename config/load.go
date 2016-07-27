@@ -112,6 +112,7 @@ func load(p *properties.Properties) (cfg *Config, err error) {
 	f.StringVar(&cfg.Registry.Micro.Registry, "registry.micro.registry", Default.Registry.Micro.Registry, "micro registry backend")
 	f.StringVar(&cfg.Registry.Micro.RegistryAddress, "registry.micro.registry_address", Default.Registry.Micro.RegistryAddress, "micro registry address")
 	f.StringVar(&cfg.Registry.Micro.Prefix, "registry.micro.prefix", Default.Registry.Micro.Prefix, "prefix for micro registry metadata")
+	f.StringVar(&cfg.Registry.Micro.RefreshInterval, "registry.micro.refresh_interval", Default.Registry.Micro.RefreshInterval, "minimum interval before updating routes")
 	f.StringVar(&cfg.Registry.File.Path, "registry.file.path", Default.Registry.File.Path, "path to file based routing table")
 	f.StringVar(&cfg.Registry.Static.Routes, "registry.static.routes", Default.Registry.Static.Routes, "static routes")
 	f.StringVar(&cfg.Registry.Consul.Addr, "registry.consul.addr", Default.Registry.Consul.Addr, "address of the consul agent")

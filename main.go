@@ -20,6 +20,8 @@ import (
 	"github.com/eBay/fabio/registry/micro"
 	"github.com/eBay/fabio/registry/static"
 	"github.com/eBay/fabio/route"
+
+	_ "github.com/micro/go-plugins/registry/nats"
 )
 
 // version contains the version number

@@ -33,6 +33,7 @@ var Default = &Config{
 			Registry:        "consul",
 			RegistryAddress: "",
 			Prefix:          "route-",
+			RefreshInterval: "10s",
 		},
 	},
 	Runtime: Runtime{

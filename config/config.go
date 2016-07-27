@@ -84,6 +84,7 @@ type Micro struct {
 	Registry        string
 	RegistryAddress string
 	Prefix          string
+	RefreshInterval string
 }
 
 type Static struct {

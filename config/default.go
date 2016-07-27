@@ -31,7 +31,7 @@ var Default = &Config{
 		},
 		Micro: Micro{
 			Registry:        "consul",
-			RegistryAddress: "localhost:8500",
+			RegistryAddress: "",
 			Prefix:          "route-",
 		},
 	},
